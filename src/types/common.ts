@@ -1,0 +1,11 @@
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  page: number
+  pages: number
+  per_page: number
+}
+
+export interface ApiError {
+  detail: string
+}
