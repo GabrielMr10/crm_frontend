@@ -10,9 +10,12 @@ export const useAuthStore = defineStore('auth', () => {
   const refreshToken = ref<string | null>(localStorage.getItem('refresh_token'))
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const initialized = ref(false)
 
   // Getters
-  const isAuthenticated = computed(() => !!accessToken.value && !!user.value)
+  // isAuthenticated: considera autenticado se tem token (mesmo antes de carregar user)
+  const isAuthenticated = computed(() => !!accessToken.value)
+  const isReady = computed(() => initialized.value)
   const userFullName = computed(() => user.value?.full_name || '')
   const userInitials = computed(() => {
     const fullName = user.value?.full_name
@@ -97,8 +100,8 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function fetchCurrentUser(): Promise<void> {
-    if (!accessToken.value) return
+  async function fetchCurrentUser(): Promise<boolean> {
+    if (!accessToken.value) return false
     try {
       const api = await getApi()
       const [userRes, tenantRes] = await Promise.all([
@@ -107,8 +110,28 @@ export const useAuthStore = defineStore('auth', () => {
       ])
       user.value = userRes.data
       tenant.value = tenantRes.data
+      return true
     } catch {
+      // Token inválido ou expirado - tenta refresh
+      const refreshed = await refreshAccessToken()
+      if (refreshed) {
+        // Tenta novamente após refresh
+        try {
+          const api = await getApi()
+          const [userRes, tenantRes] = await Promise.all([
+            api.get<User>('/users/me'),
+            api.get<Tenant>('/tenants/me')
+          ])
+          user.value = userRes.data
+          tenant.value = tenantRes.data
+          return true
+        } catch {
+          logout()
+          return false
+        }
+      }
       logout()
+      return false
     }
   }
 
@@ -118,15 +141,22 @@ export const useAuthStore = defineStore('auth', () => {
     clearTokens()
   }
 
-  async function initialize() {
-    if (accessToken.value && !user.value) {
-      await fetchCurrentUser()
+  async function initialize(): Promise<boolean> {
+    if (initialized.value) return isAuthenticated.value
+
+    if (accessToken.value) {
+      const success = await fetchCurrentUser()
+      initialized.value = true
+      return success
     }
+
+    initialized.value = true
+    return false
   }
 
   return {
-    user, tenant, accessToken, refreshToken, loading, error,
-    isAuthenticated, userFullName, userInitials,
+    user, tenant, accessToken, refreshToken, loading, error, initialized,
+    isAuthenticated, isReady, userFullName, userInitials,
     login, register, refreshAccessToken, fetchCurrentUser, logout, initialize
   }
 })
