@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useUiStore } from '@/stores/ui'
 import AppLayout from '@/layouts/AppLayout.vue'
 import { BaseButton, BaseCard } from '@/shared/components'
-import { getAgentConfig, updateAgentConfig, toggleAgent } from '../api'
+import { getAgentConfig, updateAgentConfig } from '../api'
 import type { AgentConfig } from '@/types'
 import { Bot, Loader2, Save } from 'lucide-vue-next'
 
@@ -28,11 +28,11 @@ async function loadConfig() {
 async function handleToggle() {
   if (!config.value) return
   try {
-    const result = await toggleAgent()
-    config.value.is_enabled = result.is_enabled
-    uiStore.showSuccess(result.is_enabled ? 'Laura ativada!' : 'Laura desativada')
-  } catch {
-    uiStore.showError('Erro', 'Falha ao alterar status')
+    const newStatus = !config.value.is_enabled
+    config.value = await updateAgentConfig({ is_enabled: newStatus })
+    uiStore.showSuccess(config.value.is_enabled ? 'Laura ativada!' : 'Laura desativada')
+  } catch (error: any) {
+    uiStore.showError('Erro', error.response?.data?.detail || 'Falha ao alterar status')
   }
 }
 
