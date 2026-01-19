@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useUiStore } from '@/stores/ui'
 import { useAuthStore } from '@/stores/auth'
-import { LayoutDashboard, Users, Kanban, MessageSquare, Bot, Settings, ChevronLeft, ChevronRight, X } from 'lucide-vue-next'
+import { LayoutDashboard, Users, UsersRound, Kanban, MessageSquare, Bot, Settings, ChevronLeft, ChevronRight, X } from 'lucide-vue-next'
 
 const route = useRoute()
 const uiStore = useUiStore()
@@ -15,6 +15,7 @@ const menuItems = [
   { name: 'Pipeline', path: '/pipeline', icon: Kanban },
   { name: 'Conversas', path: '/conversations', icon: MessageSquare },
   { name: 'AI Agent', path: '/ai-agent', icon: Bot },
+  { name: 'Equipe', path: '/users', icon: UsersRound },
   { name: 'Config', path: '/settings', icon: Settings },
 ]
 

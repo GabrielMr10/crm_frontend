@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
-import { Menu, Bell, LogOut, User, Settings, X } from 'lucide-vue-next'
+import { Menu, Bell, LogOut, User, Settings } from 'lucide-vue-next'
 
 const router = useRouter()
 const authStore = useAuthStore()

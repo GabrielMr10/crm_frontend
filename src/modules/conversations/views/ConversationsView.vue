@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useUiStore } from '@/stores/ui'
+import { useUsersStore } from '@/stores/users'
 import AppLayout from '@/layouts/AppLayout.vue'
 import ChatList from '../components/ChatList.vue'
 import ChatWindow from '../components/ChatWindow.vue'
@@ -8,6 +9,7 @@ import { getConversations, getConversation, sendMessage, toggleBot, markAsRead }
 import type { Conversation, Message } from '@/types'
 
 const uiStore = useUiStore()
+const usersStore = useUsersStore()
 
 const loading = ref(true)
 const conversations = ref<Conversation[]>([])
@@ -15,6 +17,9 @@ const selectedConversation = ref<Conversation | null>(null)
 const messages = ref<Message[]>([])
 const loadingMessages = ref(false)
 const sendingMessage = ref(false)
+
+// Lista de usuários para o filtro
+const usersList = computed(() => usersStore.getUsersList())
 
 let pollingInterval: ReturnType<typeof setInterval> | null = null
 
@@ -103,6 +108,7 @@ function startPolling() {
 
 onMounted(() => {
   loadConversations()
+  usersStore.loadUsers() // Carregar lista de usuários para filtro e nomes
   startPolling()
 })
 
@@ -119,6 +125,7 @@ onUnmounted(() => {
           :conversations="conversations"
           :selected-id="selectedConversation?.id"
           :loading="loading"
+          :users="usersList"
           @select="selectConversation"
         />
       </div>

@@ -14,6 +14,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/pipeline', name: 'pipeline', component: () => import('@/modules/pipeline/views/PipelineView.vue'), meta: { requiresAuth: true } },
   { path: '/conversations', name: 'conversations', component: () => import('@/modules/conversations/views/ConversationsView.vue'), meta: { requiresAuth: true } },
   { path: '/ai-agent', name: 'ai-agent', component: () => import('@/modules/ai-agent/views/AgentConfigView.vue'), meta: { requiresAuth: true } },
+  { path: '/users', name: 'users', component: () => import('@/modules/users/views/UsersListView.vue'), meta: { requiresAuth: true } },
   { path: '/settings', name: 'settings', component: () => import('@/modules/settings/views/SettingsView.vue'), meta: { requiresAuth: true } },
   { path: '/settings/profile', name: 'profile', component: () => import('@/modules/settings/views/ProfileView.vue'), meta: { requiresAuth: true } },
 
