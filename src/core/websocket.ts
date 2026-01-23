@@ -11,6 +11,8 @@ export type WebSocketEventType =
   | 'subscribed'
   | 'unsubscribed'
   | 'pong'
+  | 'whatsapp_connection_update'
+  | 'whatsapp_qrcode_updated'
 
 export interface WebSocketMessage {
   type: WebSocketEventType

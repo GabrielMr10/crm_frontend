@@ -18,6 +18,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/users', name: 'users', component: () => import('@/modules/users/views/UsersListView.vue'), meta: { requiresAuth: true } },
   { path: '/settings', name: 'settings', component: () => import('@/modules/settings/views/SettingsView.vue'), meta: { requiresAuth: true } },
   { path: '/settings/profile', name: 'profile', component: () => import('@/modules/settings/views/ProfileView.vue'), meta: { requiresAuth: true } },
+  { path: '/settings/whatsapp', name: 'settings-whatsapp', component: () => import('@/modules/settings/views/WhatsAppConnectView.vue'), meta: { requiresAuth: true } },
 
   // Catch all
   { path: '/:pathMatch(.*)*', redirect: '/' }
