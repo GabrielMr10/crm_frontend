@@ -27,25 +27,30 @@ const usersList = computed(() => usersStore.getUsersList())
 // === WebSocket Handlers ===
 
 function handleNewMessage(data: WebSocketMessage) {
-  console.log('[Conversations] Nova mensagem:', data)
+  console.log('[Conversations] Nova mensagem recebida:', data)
 
-  // Se é da conversa selecionada, adiciona à lista
+  // Se é da conversa selecionada, adiciona à lista de mensagens
   if (selectedConversation.value?.id === data.conversation_id && data.message) {
-    // Verifica se a mensagem já existe para evitar duplicatas
     const exists = messages.value.some(m => m.id === data.message.id)
     if (!exists) {
       messages.value.push(data.message)
     }
   }
 
-  // Atualiza a lista de conversas (move para cima, atualiza preview)
-  updateConversationInList(data.conversation_id!, {
+  // Atualiza ou CRIA a conversa na lista lateral
+  const conversationId = data.conversation_id
+  if (!conversationId) return
+
+  updateConversationInList(conversationId, {
     last_message_text: data.message?.content,
     last_message_at: data.message?.created_at,
-    is_unread: selectedConversation.value?.id !== data.conversation_id,
-    unread_count: selectedConversation.value?.id === data.conversation_id
+    is_unread: selectedConversation.value?.id !== conversationId,
+    unread_count: selectedConversation.value?.id === conversationId
       ? 0
-      : (getConversationById(data.conversation_id!)?.unread_count || 0) + 1
+      : (getConversationById(conversationId)?.unread_count || 0) + 1,
+    // Dados extras para criar conversa nova (se não existir)
+    phone: data.message?.sender_phone,
+    contact_name: data.message?.sender_name,
   })
 }
 
@@ -75,16 +80,59 @@ function getConversationById(id: string): Conversation | undefined {
   return conversations.value.find(c => c.id === id)
 }
 
-function updateConversationInList(id: string, updates: Partial<Conversation>) {
+interface ConversationUpdate extends Partial<Conversation> {
+  phone?: string
+  contact_name?: string
+  sender_name?: string
+}
+
+function updateConversationInList(id: string, updates: ConversationUpdate) {
   const index = conversations.value.findIndex(c => c.id === id)
+
   if (index !== -1) {
+    // Conversa existe - atualiza e move para o topo
     const existing = conversations.value[index]
     if (existing) {
-      Object.assign(existing, updates)
-      // Move para o topo
+      if (updates.last_message_text !== undefined) {
+        existing.last_message_text = updates.last_message_text
+      }
+      if (updates.last_message_at !== undefined) {
+        existing.last_message_at = updates.last_message_at
+      }
+      if (updates.is_unread !== undefined) {
+        existing.is_unread = updates.is_unread
+      }
+      if (updates.unread_count !== undefined) {
+        existing.unread_count = updates.unread_count
+      }
+      // Move para o topo da lista
       conversations.value.splice(index, 1)
       conversations.value.unshift(existing)
     }
+  } else if (updates.last_message_text && updates.phone) {
+    // NOVO: Conversa NÃO existe - cria uma nova e adiciona no topo
+    // Isso acontece quando um número novo manda mensagem pela primeira vez
+    console.log('[Conversations] Criando nova conversa na lista:', id)
+
+    const newConversation: Conversation = {
+      id,
+      phone: updates.phone,
+      contact_name: updates.contact_name || updates.sender_name || null,
+      contact_avatar_url: null,
+      is_active: true,
+      is_bot_active: true,
+      is_unread: true,
+      unread_count: 1,
+      last_message_text: updates.last_message_text,
+      last_message_at: updates.last_message_at || new Date().toISOString(),
+      assigned_to_id: null,
+      tags: [],
+      tenant_id: '',
+      lead_id: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+    conversations.value.unshift(newConversation)
   }
 }
 
