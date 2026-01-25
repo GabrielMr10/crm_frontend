@@ -9,18 +9,59 @@ export const useWebSocketStore = defineStore('websocket', () => {
 
   let stateInterval: ReturnType<typeof setInterval> | null = null
 
-  // Inicializa conexão e listeners
+  // Inicializa conexao e listeners
   function init() {
-    // Atualiza estado quando conectar
+    // 1. Listener de conexao estabelecida
     wsClient.on('connection_established', () => {
       isConnected.value = true
       connectionState.value = 'connected'
+      console.log('[WS Store] WebSocket Conectado!')
     })
 
-    // Conecta
+    // 2. Listener para nova mensagem (logging centralizado)
+    wsClient.on('new_message', (data: WebSocketMessage) => {
+      console.log('[WS Store] new_message:', data)
+      lastMessage.value = data
+    })
+
+    // 3. Listener para conversa atualizada
+    wsClient.on('conversation_updated', (data: WebSocketMessage) => {
+      console.log('[WS Store] conversation_updated:', data)
+      lastMessage.value = data
+    })
+
+    // 4. Listener para status de mensagem
+    wsClient.on('message_status_updated', (data: WebSocketMessage) => {
+      console.log('[WS Store] message_status_updated:', data)
+      lastMessage.value = data
+    })
+
+    // 5. Listener para status do WhatsApp
+    wsClient.on('whatsapp_connection_update', (data: WebSocketMessage) => {
+      console.log('[WS Store] whatsapp_connection_update:', data)
+      lastMessage.value = data
+    })
+
+    // 6. Fallback: eventos da Evolution API (caso backend repasse direto)
+    wsClient.on('MESSAGES_UPSERT', (data: WebSocketMessage) => {
+      console.log('[WS Store] MESSAGES_UPSERT (Evolution fallback):', data)
+      lastMessage.value = data
+    })
+
+    wsClient.on('MESSAGES_UPDATE', (data: WebSocketMessage) => {
+      console.log('[WS Store] MESSAGES_UPDATE (Evolution fallback):', data)
+      lastMessage.value = data
+    })
+
+    wsClient.on('CONNECTION_UPDATE', (data: WebSocketMessage) => {
+      console.log('[WS Store] CONNECTION_UPDATE (Evolution fallback):', data)
+      lastMessage.value = data
+    })
+
+    // 7. Conecta
     wsClient.connect()
 
-    // Monitora estado periodicamente
+    // 8. Monitora estado periodicamente
     if (stateInterval) {
       clearInterval(stateInterval)
     }
@@ -40,12 +81,14 @@ export const useWebSocketStore = defineStore('websocket', () => {
     }
   }
 
-  // Expõe métodos do cliente
+  // Expoe metodos do cliente
   function subscribeToConversation(conversationId: string) {
+    console.log('[WS Store] Inscrevendo na conversa:', conversationId)
     wsClient.subscribeToConversation(conversationId)
   }
 
   function unsubscribeFromConversation(conversationId: string) {
+    console.log('[WS Store] Desinscrevendo da conversa:', conversationId)
     wsClient.unsubscribeFromConversation(conversationId)
   }
 
@@ -58,10 +101,12 @@ export const useWebSocketStore = defineStore('websocket', () => {
   }
 
   function on(event: WebSocketEventType, handler: (data: WebSocketMessage) => void) {
+    console.log('[WS Store] Registrando handler para:', event)
     wsClient.on(event, handler)
   }
 
   function off(event: WebSocketEventType, handler: (data: WebSocketMessage) => void) {
+    console.log('[WS Store] Removendo handler para:', event)
     wsClient.off(event, handler)
   }
 

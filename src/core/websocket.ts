@@ -13,6 +13,9 @@ export type WebSocketEventType =
   | 'pong'
   | 'whatsapp_connection_update'
   | 'whatsapp_qrcode_updated'
+  | 'MESSAGES_UPSERT'
+  | 'MESSAGES_UPDATE'
+  | 'CONNECTION_UPDATE'
 
 export interface WebSocketMessage {
   type: WebSocketEventType
@@ -84,10 +87,10 @@ class WebSocketClient {
       this.ws.onmessage = (event) => {
         try {
           const data: WebSocketMessage = JSON.parse(event.data)
-          console.log('[WS] Mensagem recebida:', data.type)
+          console.log('[WS] Mensagem recebida:', data.type, data)
           this.handleMessage(data)
         } catch (e) {
-          console.error('[WS] Erro ao parsear mensagem:', e)
+          console.error('[WS] Erro ao parsear mensagem:', e, event.data)
         }
       }
 
@@ -199,7 +202,8 @@ class WebSocketClient {
 
   private handleMessage(data: WebSocketMessage): void {
     const handlers = this.handlers.get(data.type)
-    if (handlers) {
+    if (handlers && handlers.size > 0) {
+      console.log(`[WS] Disparando ${handlers.size} handler(s) para "${data.type}"`)
       handlers.forEach(handler => {
         try {
           handler(data)
@@ -207,6 +211,8 @@ class WebSocketClient {
           console.error('[WS] Erro no handler:', e)
         }
       })
+    } else {
+      console.log(`[WS] Nenhum handler registrado para "${data.type}"`)
     }
   }
 }
