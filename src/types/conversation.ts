@@ -33,6 +33,7 @@ export interface Message {
   direction: MessageDirection | string
   status: MessageStatus | string
   media_url: string | null
+  media_mime_type: string | null
   sent_by_id: string | null
   sent_by_bot: boolean
   conversation_id: string

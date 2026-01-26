@@ -53,11 +53,6 @@ function clearFilter() {
   filterByUser.value = null
 }
 
-function getInitials(name: string | null): string {
-  if (!name) return '?'
-  return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-}
-
 function getUserName(userId: string | null): string {
   if (!userId || !props.users) return 'Não atribuído'
   const user = props.users.find(u => u.id === userId)
@@ -126,8 +121,15 @@ function getUserName(userId: string | null): string {
       <button v-else v-for="conv in filteredConversations" :key="conv.id" @click="emit('select', conv)"
         :class="['w-full p-3 flex items-start gap-3 hover:bg-gray-50 text-left border-b transition-colors', conv.id === selectedId ? 'bg-primary-50' : '']">
         <div class="relative">
-          <div class="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center font-medium text-gray-600">
-            {{ getInitials(conv.contact_name) }}
+          <div class="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-medium flex-shrink-0 overflow-hidden">
+            <img
+              v-if="conv.contact_avatar_url"
+              :src="conv.contact_avatar_url"
+              :alt="conv.contact_name || conv.phone"
+              class="w-full h-full object-cover"
+              @error="($event.target as HTMLImageElement).style.display = 'none'"
+            />
+            <span v-else>{{ (conv.contact_name ?? conv.phone ?? '?').charAt(0).toUpperCase() }}</span>
           </div>
           <div v-if="conv.is_bot_active" class="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
             <Bot class="w-3 h-3 text-white" />

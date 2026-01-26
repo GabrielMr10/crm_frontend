@@ -51,8 +51,15 @@ watch(() => props.conversation?.id, scrollToBottom)
     <template v-else>
       <!-- Header -->
       <div class="bg-white border-b p-4 flex items-center gap-3">
-        <div class="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-medium">
-          {{ (conversation.contact_name ?? '?').charAt(0).toUpperCase() }}
+        <div class="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-medium overflow-hidden">
+          <img
+            v-if="conversation.contact_avatar_url"
+            :src="conversation.contact_avatar_url"
+            :alt="conversation.contact_name || conversation.phone"
+            class="w-full h-full object-cover"
+            @error="($event.target as HTMLImageElement).style.display = 'none'"
+          />
+          <span v-else>{{ (conversation.contact_name ?? '?').charAt(0).toUpperCase() }}</span>
         </div>
         <div class="flex-1">
           <h3 class="font-semibold">{{ conversation.contact_name || formatPhone(conversation.phone) }}</h3>
