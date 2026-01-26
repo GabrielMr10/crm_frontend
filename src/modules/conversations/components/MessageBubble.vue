@@ -86,7 +86,7 @@ function openImage() {
           style="max-height: 300px; object-fit: contain;"
           @click="openImage"
         />
-        <p v-if="hasTextContent" class="px-3 py-2 whitespace-pre-wrap break-words">
+        <p v-if="hasTextContent" class="px-3 py-2 whitespace-pre-wrap wrap-break-word">
           {{ message.content }}
         </p>
       </template>
@@ -94,7 +94,7 @@ function openImage() {
       <!-- ÁUDIO -->
       <template v-else-if="isAudio && mediaSource">
         <div class="p-3">
-          <audio controls :src="mediaSource" class="w-full max-w-[250px]">
+          <audio controls :src="mediaSource" class="w-full max-w-62.5">
             Seu navegador não suporta áudio.
           </audio>
         </div>
@@ -110,7 +110,7 @@ function openImage() {
         >
           Seu navegador não suporta vídeo.
         </video>
-        <p v-if="hasTextContent" class="px-3 py-2 whitespace-pre-wrap break-words">
+        <p v-if="hasTextContent" class="px-3 py-2 whitespace-pre-wrap wrap-break-word">
           {{ message.content }}
         </p>
       </template>
@@ -118,7 +118,7 @@ function openImage() {
       <!-- DOCUMENTO -->
       <template v-else-if="isDocument">
         <div class="flex items-center gap-3 p-3">
-          <FileText class="w-8 h-8 flex-shrink-0" :class="isOutbound ? 'text-white/80' : 'text-gray-500'" />
+          <FileText class="w-8 h-8 shrink-0" :class="isOutbound ? 'text-white/80' : 'text-gray-500'" />
           <div class="flex-1 min-w-0">
             <p class="text-sm font-medium truncate">{{ message.content || 'Documento' }}</p>
             <p class="text-xs opacity-70">{{ message.media_mime_type || 'Arquivo' }}</p>
@@ -139,7 +139,7 @@ function openImage() {
 
       <!-- TEXTO / FALLBACK -->
       <template v-else>
-        <p class="whitespace-pre-wrap break-words">{{ message.content }}</p>
+        <p class="whitespace-pre-wrap wrap-break-word">{{ message.content }}</p>
       </template>
 
       <!-- Horário e status -->

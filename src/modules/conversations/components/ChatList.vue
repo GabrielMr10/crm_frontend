@@ -121,7 +121,7 @@ function getUserName(userId: string | null): string {
       <button v-else v-for="conv in filteredConversations" :key="conv.id" @click="emit('select', conv)"
         :class="['w-full p-3 flex items-start gap-3 hover:bg-gray-50 text-left border-b transition-colors', conv.id === selectedId ? 'bg-primary-50' : '']">
         <div class="relative">
-          <div class="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-medium flex-shrink-0 overflow-hidden">
+          <div class="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-medium shrink-0 overflow-hidden">
             <img
               v-if="conv.contact_avatar_url"
               :src="conv.contact_avatar_url"
@@ -138,7 +138,7 @@ function getUserName(userId: string | null): string {
         <div class="flex-1 min-w-0">
           <div class="flex justify-between mb-1">
             <span class="font-medium truncate">{{ conv.contact_name || formatPhone(conv.phone) }}</span>
-            <span class="text-xs text-gray-500 flex-shrink-0">{{ formatRelativeTime(conv.last_message_at) }}</span>
+            <span class="text-xs text-gray-500 shrink-0">{{ formatRelativeTime(conv.last_message_at) }}</span>
           </div>
           <p class="text-sm text-gray-500 truncate">{{ conv.last_message_text || 'Sem mensagens' }}</p>
 
