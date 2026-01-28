@@ -1,15 +1,18 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onUnmounted } from 'vue'
 import type { Message } from '@/types'
 import { MessageDirection, MessageStatus, MessageType } from '@/types'
 import { useUsersStore } from '@/stores/users'
-import { Check, CheckCheck, Bot, User, FileText, MapPin, Download } from 'lucide-vue-next'
+import { Check, CheckCheck, Bot, User, FileText, MapPin, Download, X } from 'lucide-vue-next'
 
 const props = defineProps<{ message: Message }>()
 
 const usersStore = useUsersStore()
 
 const isOutbound = props.message.direction === MessageDirection.OUTBOUND
+
+// Estado do visualizador de imagem
+const isViewerOpen = ref(false)
 
 // Nome de quem enviou
 const senderName = computed(() => {
@@ -55,12 +58,69 @@ const hasTextContent = computed(() => {
   return true
 })
 
-// Abre imagem em nova aba
-function openImage() {
-  if (mediaSource.value) {
+// Horário formatado
+const formattedTime = computed(() => {
+  return new Date(props.message.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+})
+
+// --- AÇÕES DO VISUALIZADOR ---
+function openViewer() {
+  if (!mediaSource.value) return
+  isViewerOpen.value = true
+  document.body.style.overflow = 'hidden'
+  window.addEventListener('keydown', handleKeydown)
+}
+
+function closeViewer() {
+  isViewerOpen.value = false
+  document.body.style.overflow = ''
+  window.removeEventListener('keydown', handleKeydown)
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') closeViewer()
+}
+
+async function downloadImage() {
+  if (!mediaSource.value) return
+
+  try {
+    // Para base64, cria link direto
+    if (mediaSource.value.startsWith('data:')) {
+      const a = document.createElement('a')
+      a.href = mediaSource.value
+      a.download = `imagem-${Date.now()}.jpg`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      return
+    }
+
+    // Para URLs, faz fetch e força download
+    const response = await fetch(mediaSource.value)
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const fileName = mediaSource.value.split('/').pop() || `imagem-${Date.now()}.jpg`
+    a.download = fileName
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('Erro ao baixar imagem:', error)
     window.open(mediaSource.value, '_blank')
   }
 }
+
+// Cleanup ao desmontar
+onUnmounted(() => {
+  if (isViewerOpen.value) {
+    document.body.style.overflow = ''
+    window.removeEventListener('keydown', handleKeydown)
+  }
+})
 </script>
 
 <template>
@@ -80,13 +140,21 @@ function openImage() {
 
       <!-- IMAGEM -->
       <template v-if="isImage && mediaSource">
-        <img
-          :src="mediaSource"
-          alt="Imagem"
-          class="max-w-full rounded-xl cursor-pointer hover:opacity-90 transition-opacity"
-          style="max-height: 300px; object-fit: contain;"
-          @click="openImage"
-        />
+        <div class="relative cursor-pointer group/img" @click="openViewer">
+          <img
+            :src="mediaSource"
+            alt="Imagem"
+            class="max-w-full rounded-xl transition-all duration-200 group-hover/img:brightness-90"
+            style="max-height: 300px; object-fit: contain;"
+          />
+          <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">
+            <div class="bg-black/50 rounded-full p-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+              </svg>
+            </div>
+          </div>
+        </div>
         <p v-if="hasTextContent" class="px-3 py-2 whitespace-pre-wrap wrap-break-word">
           {{ message.content }}
         </p>
@@ -94,8 +162,8 @@ function openImage() {
 
       <!-- ÁUDIO -->
       <template v-else-if="isAudio && mediaSource">
-        <div class="p-3 min-w-50">
-          <audio controls preload="metadata" class="w-full h-10">
+        <div class="p-0 min-w-90">
+          <audio controls preload="metadata" class="w-full h-15">
             <source :src="mediaSource" type="audio/ogg">
             <source :src="mediaSource" type="audio/mpeg">
             <source :src="mediaSource" type="audio/mp4">
@@ -153,10 +221,89 @@ function openImage() {
         isOutbound ? 'justify-end opacity-75' : 'text-gray-500',
         isMedia && mediaSource ? 'px-3 pb-2' : 'mt-1'
       ]">
-        <span>{{ new Date(message.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }}</span>
+        <span>{{ formattedTime }}</span>
         <CheckCheck v-if="isOutbound && message.status === MessageStatus.READ" class="w-4 h-4 text-blue-300" />
         <Check v-else-if="isOutbound" class="w-4 h-4" />
       </div>
     </div>
+
+    <!-- LIGHTBOX / VISUALIZADOR DE IMAGEM -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div
+          v-if="isViewerOpen"
+          class="fixed inset-0 z-[9999] bg-black/95 flex flex-col"
+          @click.self="closeViewer"
+        >
+          <!-- Header -->
+          <div class="flex justify-between items-center p-4 text-white bg-gradient-to-b from-black/60 to-transparent">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-sm font-medium">
+                {{ isOutbound ? 'Eu' : '?' }}
+              </div>
+              <div class="flex flex-col">
+                <span class="text-sm font-medium">{{ isOutbound ? 'Você' : 'Cliente' }}</span>
+                <span class="text-xs text-white/70">{{ formattedTime }}</span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button
+                @click.stop="downloadImage"
+                class="p-3 hover:bg-white/10 rounded-full transition-colors"
+                title="Baixar imagem"
+              >
+                <Download class="w-6 h-6" />
+              </button>
+
+              <button
+                @click.stop="closeViewer"
+                class="p-3 hover:bg-white/10 rounded-full transition-colors"
+                title="Fechar (ESC)"
+              >
+                <X class="w-6 h-6" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Imagem -->
+          <div class="flex-1 flex items-center justify-center p-4 overflow-auto">
+            <img
+              :src="mediaSource!"
+              class="max-w-full max-h-full object-contain animate-zoom-in select-none"
+              @click.stop
+            />
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
+
+<style scoped>
+/* Animações do Lightbox */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.animate-zoom-in {
+  animation: zoomIn 0.25s ease-out;
+}
+
+@keyframes zoomIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+</style>
