@@ -22,11 +22,12 @@ const senderName = computed(() => {
 })
 
 // Verifica tipo de mídia
-const isImage = computed(() => props.message.message_type === MessageType.IMAGE || props.message.message_type === 'image')
-const isAudio = computed(() => props.message.message_type === MessageType.AUDIO || props.message.message_type === 'audio')
-const isVideo = computed(() => props.message.message_type === MessageType.VIDEO || props.message.message_type === 'video')
-const isDocument = computed(() => props.message.message_type === MessageType.DOCUMENT || props.message.message_type === 'document')
-const isLocation = computed(() => props.message.message_type === 'location')
+const messageType = computed(() => props.message.message_type?.toLowerCase() || '')
+const isImage = computed(() => messageType.value === 'image' || messageType.value === MessageType.IMAGE)
+const isAudio = computed(() => ['audio', 'voice', 'ptt'].includes(messageType.value) || messageType.value === MessageType.AUDIO)
+const isVideo = computed(() => messageType.value === 'video' || messageType.value === MessageType.VIDEO)
+const isDocument = computed(() => ['document', 'application'].includes(messageType.value) || messageType.value === MessageType.DOCUMENT)
+const isLocation = computed(() => messageType.value === 'location')
 const isMedia = computed(() => isImage.value || isAudio.value || isVideo.value || isDocument.value)
 
 // URL da mídia (trata base64 e URL direta)
@@ -93,8 +94,12 @@ function openImage() {
 
       <!-- ÁUDIO -->
       <template v-else-if="isAudio && mediaSource">
-        <div class="p-3">
-          <audio controls :src="mediaSource" class="w-full max-w-62.5">
+        <div class="p-3 min-w-50">
+          <audio controls preload="metadata" class="w-full h-10">
+            <source :src="mediaSource" type="audio/ogg">
+            <source :src="mediaSource" type="audio/mpeg">
+            <source :src="mediaSource" type="audio/mp4">
+            <source :src="mediaSource" type="audio/webm">
             Seu navegador não suporta áudio.
           </audio>
         </div>
