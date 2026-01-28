@@ -3,7 +3,7 @@ import { computed, ref, onUnmounted } from 'vue'
 import type { Message } from '@/types'
 import { MessageDirection, MessageStatus, MessageType } from '@/types'
 import { useUsersStore } from '@/stores/users'
-import { Check, CheckCheck, Bot, User, FileText, MapPin, Download, X } from 'lucide-vue-next'
+import { Check, CheckCheck, Bot, User, FileText, MapPin, Download, X, Play, Video } from 'lucide-vue-next'
 
 const props = defineProps<{ message: Message }>()
 
@@ -11,8 +11,10 @@ const usersStore = useUsersStore()
 
 const isOutbound = props.message.direction === MessageDirection.OUTBOUND
 
-// Estado do visualizador de imagem
+// Estado do visualizador de mídia
 const isViewerOpen = ref(false)
+const videoDuration = ref('0:00')
+const videoRef = ref<HTMLVideoElement | null>(null)
 
 // Nome de quem enviou
 const senderName = computed(() => {
@@ -63,6 +65,21 @@ const formattedTime = computed(() => {
   return new Date(props.message.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 })
 
+// Formata segundos em MM:SS
+function formatDuration(seconds: number): string {
+  if (isNaN(seconds) || seconds === 0) return '0:00'
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = Math.floor(seconds % 60)
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+}
+
+// Captura metadados do vídeo quando carrega
+function handleVideoMetadata() {
+  if (videoRef.value) {
+    videoDuration.value = formatDuration(videoRef.value.duration)
+  }
+}
+
 // --- AÇÕES DO VISUALIZADOR ---
 function openViewer() {
   if (!mediaSource.value) return
@@ -81,7 +98,7 @@ function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') closeViewer()
 }
 
-async function downloadImage() {
+async function downloadMedia() {
   if (!mediaSource.value) return
 
   try {
@@ -89,7 +106,8 @@ async function downloadImage() {
     if (mediaSource.value.startsWith('data:')) {
       const a = document.createElement('a')
       a.href = mediaSource.value
-      a.download = `imagem-${Date.now()}.jpg`
+      const ext = isImage.value ? 'jpg' : isVideo.value ? 'mp4' : 'file'
+      a.download = `media-${Date.now()}.${ext}`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -102,14 +120,14 @@ async function downloadImage() {
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    const fileName = mediaSource.value.split('/').pop() || `imagem-${Date.now()}.jpg`
+    const fileName = mediaSource.value.split('/').pop() || `media-${Date.now()}`
     a.download = fileName
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
     window.URL.revokeObjectURL(url)
   } catch (error) {
-    console.error('Erro ao baixar imagem:', error)
+    console.error('Erro ao baixar mídia:', error)
     window.open(mediaSource.value, '_blank')
   }
 }
@@ -175,14 +193,36 @@ onUnmounted(() => {
 
       <!-- VÍDEO -->
       <template v-else-if="isVideo && mediaSource">
-        <video
-          controls
-          :src="mediaSource"
-          class="max-w-full rounded-xl"
-          style="max-height: 300px;"
+        <div
+          class="relative cursor-pointer group/video rounded-xl overflow-hidden"
+          @click="openViewer"
         >
-          Seu navegador não suporta vídeo.
-        </video>
+          <!-- Thumbnail do vídeo (sem controles) -->
+          <video
+            ref="videoRef"
+            :src="mediaSource + '#t=0.1'"
+            preload="metadata"
+            class="max-w-full rounded-xl brightness-90"
+            style="max-height: 300px; object-fit: cover;"
+            @loadedmetadata="handleVideoMetadata"
+          />
+
+          <!-- Overlay escuro -->
+          <div class="absolute inset-0 bg-black/20 group-hover/video:bg-black/40 transition-colors" />
+
+          <!-- Botão de Play central -->
+          <div class="absolute inset-0 flex items-center justify-center">
+            <div class="bg-black/50 rounded-full p-4 backdrop-blur-sm group-hover/video:bg-black/70 group-hover/video:scale-110 transition-all shadow-lg">
+              <Play class="w-8 h-8 text-white fill-white" />
+            </div>
+          </div>
+
+          <!-- Duração no canto inferior esquerdo -->
+          <div class="absolute bottom-2 left-2 bg-black/60 text-white text-xs font-medium px-2 py-1 rounded-md backdrop-blur-sm flex items-center gap-1">
+            <Video class="w-3 h-3 opacity-80" />
+            <span>{{ videoDuration }}</span>
+          </div>
+        </div>
         <p v-if="hasTextContent" class="px-3 py-2 whitespace-pre-wrap wrap-break-word">
           {{ message.content }}
         </p>
@@ -227,7 +267,7 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- LIGHTBOX / VISUALIZADOR DE IMAGEM -->
+    <!-- LIGHTBOX / VISUALIZADOR DE MÍDIA -->
     <Teleport to="body">
       <Transition name="fade">
         <div
@@ -249,9 +289,9 @@ onUnmounted(() => {
 
             <div class="flex items-center gap-2">
               <button
-                @click.stop="downloadImage"
+                @click.stop="downloadMedia"
                 class="p-3 hover:bg-white/10 rounded-full transition-colors"
-                title="Baixar imagem"
+                title="Baixar mídia"
               >
                 <Download class="w-6 h-6" />
               </button>
@@ -266,13 +306,27 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- Imagem -->
+          <!-- Conteúdo (Imagem ou Vídeo) -->
           <div class="flex-1 flex items-center justify-center p-4 overflow-auto">
+            <!-- Imagem -->
             <img
+              v-if="isImage"
               :src="mediaSource!"
               class="max-w-full max-h-full object-contain animate-zoom-in select-none"
               @click.stop
             />
+
+            <!-- Vídeo com controles e autoplay -->
+            <video
+              v-else-if="isVideo"
+              :src="mediaSource!"
+              controls
+              autoplay
+              class="max-w-full max-h-full animate-zoom-in outline-none rounded-lg"
+              @click.stop
+            >
+              Seu navegador não suporta vídeo.
+            </video>
           </div>
         </div>
       </Transition>
