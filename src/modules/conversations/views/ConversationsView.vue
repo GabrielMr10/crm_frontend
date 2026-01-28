@@ -51,6 +51,8 @@ function handleNewMessage(data: WebSocketMessage) {
     // Dados extras para criar conversa nova (se não existir)
     phone: data.message?.sender_phone,
     contact_name: data.message?.sender_name,
+    // Avatar do contato
+    contact_avatar_url: data.message?.contact_avatar_url,
   })
 }
 
@@ -84,6 +86,7 @@ interface ConversationUpdate extends Partial<Conversation> {
   phone?: string
   contact_name?: string
   sender_name?: string
+  contact_avatar_url?: string | null
 }
 
 function updateConversationInList(id: string, updates: ConversationUpdate) {
@@ -105,6 +108,10 @@ function updateConversationInList(id: string, updates: ConversationUpdate) {
       if (updates.unread_count !== undefined) {
         existing.unread_count = updates.unread_count
       }
+      // Atualiza o avatar se vier na mensagem
+      if (updates.contact_avatar_url && !existing.contact_avatar_url) {
+        existing.contact_avatar_url = updates.contact_avatar_url
+      }
       // Move para o topo da lista
       conversations.value.splice(index, 1)
       conversations.value.unshift(existing)
@@ -118,7 +125,7 @@ function updateConversationInList(id: string, updates: ConversationUpdate) {
       id,
       phone: updates.phone,
       contact_name: updates.contact_name || updates.sender_name || null,
-      contact_avatar_url: null,
+      contact_avatar_url: updates.contact_avatar_url || null,
       is_active: true,
       is_bot_active: true,
       is_unread: true,
@@ -142,6 +149,13 @@ async function loadConversations() {
   try {
     const response = await getConversations({ per_page: 50 })
     conversations.value = response.items
+
+    // DEBUG: Verificar se contact_avatar_url está vindo do backend
+    console.log('[DEBUG] Conversas carregadas:', response.items.map(c => ({
+      phone: c.phone,
+      contact_name: c.contact_name,
+      contact_avatar_url: c.contact_avatar_url
+    })))
   } catch {
     uiStore.showError('Erro', 'Falha ao carregar conversas')
   } finally {
