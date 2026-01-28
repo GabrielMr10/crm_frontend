@@ -3,7 +3,7 @@ import { computed, ref, onUnmounted } from 'vue'
 import type { Message } from '@/types'
 import { MessageDirection, MessageStatus, MessageType } from '@/types'
 import { useUsersStore } from '@/stores/users'
-import { Check, CheckCheck, Bot, User, FileText, MapPin, Download, X, Play, Video } from 'lucide-vue-next'
+import { Check, CheckCheck, Bot, User, FileText, MapPin, Download, X, Play, Video, ZoomIn, ZoomOut } from 'lucide-vue-next'
 
 const props = defineProps<{ message: Message }>()
 
@@ -15,6 +15,13 @@ const isOutbound = props.message.direction === MessageDirection.OUTBOUND
 const isViewerOpen = ref(false)
 const videoDuration = ref('0:00')
 const videoRef = ref<HTMLVideoElement | null>(null)
+
+// Estados de Zoom e Pan (Arrastar)
+const scale = ref(1)
+const translateX = ref(0)
+const translateY = ref(0)
+const isDragging = ref(false)
+const startDrag = ref({ x: 0, y: 0 })
 
 // Nome de quem enviou
 const senderName = computed(() => {
@@ -84,6 +91,10 @@ function handleVideoMetadata() {
 function openViewer() {
   if (!mediaSource.value) return
   isViewerOpen.value = true
+  // Reseta zoom e posição
+  scale.value = 1
+  translateX.value = 0
+  translateY.value = 0
   document.body.style.overflow = 'hidden'
   window.addEventListener('keydown', handleKeydown)
 }
@@ -96,6 +107,70 @@ function closeViewer() {
 
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') closeViewer()
+}
+
+// --- LÓGICA DE ZOOM (WHEEL) ---
+function handleWheel(e: WheelEvent) {
+  // Apenas para imagem
+  if (!isImage.value) return
+
+  // Zoom In (roda pra cima) ou Out (roda pra baixo)
+  const delta = e.deltaY > 0 ? -0.25 : 0.25
+  const newScale = scale.value + delta
+
+  // Limites: Min 1x, Max 5x
+  scale.value = Math.min(Math.max(1, newScale), 5)
+
+  // Se voltar para 1x, reseta a posição (centraliza)
+  if (scale.value === 1) {
+    translateX.value = 0
+    translateY.value = 0
+  }
+}
+
+// Zoom com botões
+function zoomIn() {
+  if (scale.value < 5) {
+    scale.value = Math.min(scale.value + 0.5, 5)
+  }
+}
+
+function zoomOut() {
+  if (scale.value > 1) {
+    scale.value = Math.max(scale.value - 0.5, 1)
+    if (scale.value === 1) {
+      translateX.value = 0
+      translateY.value = 0
+    }
+  }
+}
+
+function resetZoom() {
+  scale.value = 1
+  translateX.value = 0
+  translateY.value = 0
+}
+
+// --- LÓGICA DE ARRASTAR (PAN) ---
+function startDragging(e: MouseEvent) {
+  if (scale.value <= 1) return
+  e.preventDefault()
+  isDragging.value = true
+  startDrag.value = {
+    x: e.clientX - translateX.value,
+    y: e.clientY - translateY.value
+  }
+}
+
+function onDrag(e: MouseEvent) {
+  if (!isDragging.value) return
+  e.preventDefault()
+  translateX.value = e.clientX - startDrag.value.x
+  translateY.value = e.clientY - startDrag.value.y
+}
+
+function stopDragging() {
+  isDragging.value = false
 }
 
 async function downloadMedia() {
@@ -272,11 +347,12 @@ onUnmounted(() => {
       <Transition name="fade">
         <div
           v-if="isViewerOpen"
-          class="fixed inset-0 z-[9999] bg-black/95 flex flex-col"
+          class="fixed inset-0 z-[9999] bg-black/95 flex flex-col overflow-hidden"
           @click.self="closeViewer"
+          @wheel.prevent="handleWheel"
         >
           <!-- Header -->
-          <div class="flex justify-between items-center p-4 text-white bg-gradient-to-b from-black/60 to-transparent">
+          <div class="flex justify-between items-center p-4 text-white bg-gradient-to-b from-black/60 to-transparent z-50">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-sm font-medium">
                 {{ isOutbound ? 'Eu' : '?' }}
@@ -288,6 +364,38 @@ onUnmounted(() => {
             </div>
 
             <div class="flex items-center gap-2">
+              <!-- Indicador de Zoom (apenas para imagem) -->
+              <template v-if="isImage">
+                <button
+                  v-if="scale > 1"
+                  @click.stop="resetZoom"
+                  class="px-2 py-1 text-xs bg-white/10 hover:bg-white/20 rounded border border-white/20 transition-colors"
+                  title="Clique para resetar zoom"
+                >
+                  {{ Math.round(scale * 100) }}%
+                </button>
+
+                <button
+                  @click.stop="zoomOut"
+                  :disabled="scale <= 1"
+                  :class="['p-2 rounded-full transition-colors', scale <= 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10']"
+                  title="Diminuir zoom"
+                >
+                  <ZoomOut class="w-5 h-5" />
+                </button>
+
+                <button
+                  @click.stop="zoomIn"
+                  :disabled="scale >= 5"
+                  :class="['p-2 rounded-full transition-colors', scale >= 5 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10']"
+                  title="Aumentar zoom"
+                >
+                  <ZoomIn class="w-5 h-5" />
+                </button>
+
+                <div class="w-px h-6 bg-white/20 mx-1" />
+              </template>
+
               <button
                 @click.stop="downloadMedia"
                 class="p-3 hover:bg-white/10 rounded-full transition-colors"
@@ -307,12 +415,23 @@ onUnmounted(() => {
           </div>
 
           <!-- Conteúdo (Imagem ou Vídeo) -->
-          <div class="flex-1 flex items-center justify-center p-4 overflow-auto">
-            <!-- Imagem -->
+          <div
+            class="flex-1 flex items-center justify-center p-4 overflow-hidden"
+            :class="{ 'cursor-move': scale > 1, 'cursor-default': scale === 1 }"
+            @mousedown="startDragging"
+            @mousemove="onDrag"
+            @mouseup="stopDragging"
+            @mouseleave="stopDragging"
+          >
+            <!-- Imagem com zoom e pan -->
             <img
               v-if="isImage"
               :src="mediaSource!"
-              class="max-w-full max-h-full object-contain animate-zoom-in select-none"
+              class="max-w-full max-h-full object-contain select-none transition-transform duration-100 ease-out"
+              :style="{
+                transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`
+              }"
+              draggable="false"
               @click.stop
             />
 
@@ -327,6 +446,11 @@ onUnmounted(() => {
             >
               Seu navegador não suporta vídeo.
             </video>
+          </div>
+
+          <!-- Dica de Zoom (apenas para imagem) -->
+          <div v-if="isImage && scale === 1" class="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/50 text-xs flex items-center gap-2">
+            <span>Use a roda do mouse para dar zoom</span>
           </div>
         </div>
       </Transition>
