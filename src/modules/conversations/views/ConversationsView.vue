@@ -70,8 +70,12 @@ function handleMessageStatus(data: WebSocketMessage) {
   console.log('[Conversations] Status mensagem:', data)
   if (data.message_id && data.status) {
     const messageIndex = messages.value.findIndex(m => m.id === data.message_id)
-    if (messageIndex !== -1 && messages.value[messageIndex]) {
-      messages.value[messageIndex].status = data.status
+    if (messageIndex !== -1) {
+      // Substituir objeto inteiro para garantir reatividade
+      messages.value[messageIndex] = {
+        ...messages.value[messageIndex],
+        status: data.status
+      }
     }
   }
 }

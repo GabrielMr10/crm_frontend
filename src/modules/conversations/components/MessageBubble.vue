@@ -337,7 +337,11 @@ onUnmounted(() => {
         isMedia && mediaSource ? 'px-3 pb-2' : 'mt-1'
       ]">
         <span>{{ formattedTime }}</span>
+        <!-- READ: 2 ticks azuis -->
         <CheckCheck v-if="isOutbound && message.status === MessageStatus.READ" class="w-4 h-4 text-blue-300" />
+        <!-- DELIVERED: 2 ticks cinza -->
+        <CheckCheck v-else-if="isOutbound && message.status === MessageStatus.DELIVERED" class="w-4 h-4" />
+        <!-- SENT/PENDING: 1 tick cinza -->
         <Check v-else-if="isOutbound" class="w-4 h-4" />
       </div>
     </div>
